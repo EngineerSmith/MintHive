@@ -1,1 +1,2 @@
 # MintHive
+A networking library
