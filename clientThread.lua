@@ -1,4 +1,4 @@
-local PATH, channelIn, address, serverID = ...
+local PATH, channelIn, address, serverID, defaultPort, serverPin = ...
 
 local options = require(PATH .. ".options")
 
@@ -13,13 +13,22 @@ end
 local lt, le, ld = love.thread, require("love.event"), require("love.data")
 local enet = require("enet")
 local enum = require(PATH .. ".enum")
-local serialize = require(PATH .. "serialize")
-
-local file = love.filesystem.newFile((".data/client.%s.dat"):format(tostring(serverID) or "0"))
-file:setBuffer("none")
+local serialize = require(PATH .. ".serialize")
 
 local POST = function(...)
   le.push(options.clientHandlerEvent, ...)
+end
+
+love.filesystem.createDirectory(".data")
+local fileServerID = (tostring(serverID) or "0"):gsub(":", ".")
+local file = love.filesystem.openFile((".data/client.%s.dat"):format(fileServerID), "c")
+file:setBuffer("none")
+if not love.filesystem.getInfo(file:getFilename(), "file") then
+  local success, errormessage = file:open("w")
+  if not success then
+    POST("log", errormessage)
+  end
+  file:close()
 end
 
 local getUid = function()
@@ -48,13 +57,16 @@ end
 -- thread loop
 
 local host = enet.host_create(nil, 1, enum.channelCount, 0, 0)
-local server = host:connect(address, enum.channelCount)
+if not address:find(":") then
+  address = address .. ":" .. defaultPort
+end
+local server = host:connect(address, enum.channelCount, serverPin)
 local loggedIn = false
 
 local success = host:service(1000)
 
 if not success or success.type ~= "connect" or success.peer ~= server then
-  if success.peer ~= server then
+  if success and success.peer ~= server then
     success.peer:disconnect_now(enum.disconnect.badconnect)
   end
   POST(enum.packetType.disconnect, serialize.encode("badconnect", enum.disconnect.badconnect))
@@ -79,8 +91,8 @@ while true do
           local success, decoded = pcall(serialize.decodeIndexed, data:getString())
           if not success then
             POST("log", "Could not decode incoming encoded data confirming login. Disconnecting.")
-            POST(enum.packetType.disconnect, serialize.encode(enum.disconnect.badserver))
-            channelIn:performAtmoic(function()
+            POST(enum.packetType.disconnect, serialize.encode("badserver", enum.disconnect.badserver))
+            channelIn:performAtomic(function()
               channelIn:clear()
               channelIn:push("quit")
             end)
@@ -104,7 +116,7 @@ while true do
     elseif event.type == "disconnect" then
       local reason = enum.convert(event.data, "disconnect")
       POST(enum.packetType.disconnect, serialize.encode(reason, event.data))
-      channelIn:performAtmoic(function()
+      channelIn:performAtomic(function()
           channelIn:clear()
           channelIn:push("quit")
       end)
@@ -127,7 +139,10 @@ while true do
       end
       host:flush()
       host:destroy()
-      outProfile:stop()
+      if appleCake then
+        outProfile:stop()
+        appleCake.flush()
+      end
       return
     end
 
@@ -147,8 +162,8 @@ while true do
     end
 
     if target == "login" then
-      -- data is username in login
-      data = serialize.encode("login", data, getUid())
+      -- data is username in login command
+      data = serialize.encode(data, getUid())
       target = "send"
     end
 
@@ -166,7 +181,7 @@ while true do
           appleCake.mark("Compressed", "p", { size = data:getSize(), compressedSize = compressData:getSize() })
         end
       end
-      server:send(compressData:getFFIPointer(), compressData:getSize(), channel, flags)
+      server:send(compressData:getPointer(), compressData:getSize(), channel, flags)
     elseif target == "disconnect" then
       server:disconnect(tonumber(command[2]) or enum.disconnect.normal)
     end

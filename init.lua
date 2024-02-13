@@ -6,6 +6,7 @@ local mintHive = {
   client = require(PATH .. ".client"),
   server = require(PATH .. ".server"),
   isSingleplayer = false,
+  validateUsername = options.validateUsername
 }
 
 mintHive.setSingleplayer = function()

@@ -7,17 +7,17 @@ local buffer = require("string.buffer")
 
 local options = require(PATH .. ".options")
 
-local options = {
+local bufferOpts = {
   dict = {
     "type",
     "userdata"
   }
 }
 
-table.sort(options.dict, function(a, b) return a < b end)
+table.sort(bufferOpts.dict, function(a, b) return a < b end)
 
-local buffer_encode = buffer.new(options)
-local buffer_decode = buffer.new(options)
+local buffer_encode = buffer.new(bufferOpts)
+local buffer_decode = buffer.new(bufferOpts)
 
 local supportedTypesTable = {
   boolean  = true,
@@ -70,10 +70,14 @@ serialize = {
         end
         if type(var) == "userdata" then
           if type(var.typeOf) == "function" and var:typeOf("Data") then
-            data[i] = {
-              type = "userdata",
-              userdata = var:getString(),
-            }
+            if var:getSize() == 0 then
+              data[i] = nil
+            else
+              data[i] = {
+                type = "userdata",
+                userdata = var:getString(),
+              }
+            end
           end
         end
       end
@@ -89,7 +93,7 @@ serialize = {
       local decoded = buffer_decode:set(data):decode()
       for i, var in ipairs(decoded) do
         if type(var) == "table" and var.type == "userdata" and type(var.userdata) == "string" then
-          decoded[i] = ld.newByteData(var)
+          decoded[i] = ld.newByteData(var.userdata)
         end
       end
       return decoded

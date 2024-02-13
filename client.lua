@@ -19,7 +19,7 @@ for _, type in ipairs(enum.packetType) do
   client._handlers[type] = { }
 end
 
-client.connect = function(address, serverID, username)
+client.connect = function(address, serverID, defaultPort, username, serverPin)
   love.handlers[options.clientHandlerEvent] = client._handler
 
   client._channelIn = lt.newChannel()
@@ -27,7 +27,7 @@ client.connect = function(address, serverID, username)
     "login",
     username,
   })
-  client._thread:start(PATH, client._channelIn, address, serverID)
+  client._thread:start(PATH, client._channelIn, address, serverID, defaultPort, serverPin)
   client.address = address
 end
 
@@ -114,9 +114,9 @@ end
 
 -- private
 
-client._handle = function(packetType, encoded, ...)
+client._handler = function(packetType, encoded, ...)
   if client._isSingleplayer then
-    for _, callback in ipairs(client.handlers[packetType]) do
+    for _, callback in ipairs(client._handlers[packetType]) do
       callback(encoded, ...)
     end
     return
@@ -127,6 +127,7 @@ client._handle = function(packetType, encoded, ...)
     return
   elseif packetType == "log" then
     options.log("Thread", encoded, ...)
+    return
   end
 
   if packetType == "ping" then
@@ -145,23 +146,23 @@ client._handle = function(packetType, encoded, ...)
 
   if packetType == enum.packetType.receive then
     local type = decoded[1]
-    if not type or type(client.handlers[type]) ~= "table" then
+    if not type or type(client._handlers[type]) ~= "table" then
       options.log("There were no handlers for received type: "..tostring(type))
       return
     end
-    for _, callback in ipairs(client.handlers[type]) do
+    for _, callback in ipairs(client._handlers[type]) do
       callback(unpack(decoded, 2))
     end
   elseif packetType == enum.packetType.disconnect then
     options.log("Disconnected! Reason: ", decoded[1], "code", decoded[2])
     client.isConnected = false
-    for _, callback in ipairs(client.handlers[enum.packetType.disconnect]) do
+    for _, callback in ipairs(client._handlers[enum.packetType.disconnect]) do
       callback(decoded[1], decoded[2])
     end
   elseif packetType == enum.packetType.login then
     client.isConnected = true
     options.log("Connection has been successful")
-    for _, callback in ipairs(client.handlers[enum.packetType.login]) do
+    for _, callback in ipairs(client._handlers[enum.packetType.login]) do
       callback()
     end
   end

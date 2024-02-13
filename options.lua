@@ -4,7 +4,7 @@
 return {
   -- logging and error handling (Only called from the main thread)
   log = function(...)
-    print("MintHive: ".. ({...}):concat(", "))
+    print("MintHive: ".. table.concat({...}, ", "))
   end,
   error = function(msg)
     error("MintHive: "..tostring(msg))
@@ -51,6 +51,6 @@ return {
     -- Changing the following values after having generated uids
     -- Will cause previously generated UIDs to become invalid
   hashFunction = "sha256", -- https://love2d.org/wiki/HashFunction
-  uidLength = 32,
-  saltLength = 32,
+  uidLength = 64,
+  saltLength = 64,
 }

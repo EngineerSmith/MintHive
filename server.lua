@@ -11,10 +11,16 @@ local server = {
   channel = enum.channel,
   disconnectReason = enum.disconnect,
   -- private
-  _handlers = { },
+  _handlers = {
+    started = { }
+  },
   _thread = lt.newThread(FILEPATH .. "/serverThread.lua"),
   _isSingleplayer = false,
 }
+
+for _, enum in pairs(enum.packetType) do
+  server._handlers[enum] = { }
+end
 
 server.start = function(settings)
   love.handlers[options.serverHandlerEvent] = server._handler
@@ -25,8 +31,12 @@ server.start = function(settings)
   server._thread:start(PATH, server._channelIn, settings)
 end
 
+server.isRunning = function()
+  return server._thread:isRunning()
+end
+
 server.setSingleplayerMode = function(isSingleplayer)
-  if server._thread:isRunning() then
+  if server.isRunning() then
     options.log("Tried to change singleplayer mode while already running")
     return false
   end
@@ -35,7 +45,7 @@ server.setSingleplayerMode = function(isSingleplayer)
 end
 
 server.getConnectedAmount = function()
-  return server._thread:isRunning() and server._clientCount or nil
+  return server.isRunning() and server._clientCount or nil
 end
 
 server.addHandler = function(type, callback)
@@ -78,7 +88,7 @@ server.sendChannelAll = function(channel, type, ...)
 end
 
 server.disconnectClient = function(client, reason)
-  if not server._thread:isRunning() then
+  if not server.isRunning() then
     return nil
   end
   server._channelIn:push({
@@ -89,7 +99,7 @@ server.disconnectClient = function(client, reason)
 end
 
 server.quit = function()
-  if server._thread:isRunning() then
+  if server.isRunning() then
     server.nonwaitingQuit()
     server._thread:wait()
   end
@@ -98,7 +108,7 @@ server.quit = function()
 end
 
 server.nonwaitingQuit = function()
-  if not server._thread:isRunning() then
+  if not server.isRunning() then
     return
   end
   server._channelIn:performAtmoic(function()
@@ -118,11 +128,11 @@ end
 -- private functions
 
 server._getClient = function(sessionID)
-  if not server._thread:isRunning() then
+  if not server.isRunning() then
     return nil
   end
   
-  local client = server.clients[sessionID]
+  local client = server._clients[sessionID]
   if not client then
     client = {
       sessionID = sessionID
@@ -134,13 +144,13 @@ server._getClient = function(sessionID)
 end
 
 server._removeClient = function(sessionID)
-  if server._thread:isRunning() and server._clients[sessionID] then
+  if server.isRunning() and server._clients[sessionID] then
     server._clients[sessionID] = nil
     server._clientCount = server._clientCount - 1
   end
 end
 
-server._handle = function(packetType, ...)
+server._handler = function(packetType, ...)
   if server._isSingleplayer then
     for _, callback in ipairs(server._handlers[packetType]) do
       callback(nil--[[ client ]], ...)
@@ -153,13 +163,20 @@ server._handle = function(packetType, ...)
     return
   elseif packetType == "log" then
     options.log(...)
+    return
+  elseif packetType == "started" then
+    for _, callback in ipairs(server._handlers[packetType]) do
+      callback(...)
+    end
+    return
   end
 
   local sessionID, encoded = ...
   local decoded = nil
   if encoded then
     local success
-    success, decoded, encoded = pcall(serialize.decodeIndexed, encoded:getString()), nil
+    success, decoded = pcall(serialize.decodeIndexed, encoded:getString())
+    encoded = nil
     if not success then
       options.log("Could not decode incoming data")
       return
@@ -169,7 +186,7 @@ server._handle = function(packetType, ...)
 
   if packetType == enum.packetType.receive then
     local type = decoded[1]
-    if not type or type(client.handlers[type]) ~= "table" then
+    if not type or type(client._handlers[type]) ~= "table" then
       options.log("There were no handlers for received type: "..tostring(type))
       return
     end
@@ -180,9 +197,8 @@ server._handle = function(packetType, ...)
     if packetType == enum.packetType.disconnect then
       server._removeClient(sessionID)
     elseif packetType == enum.packetType.login then
-      local login = decoded[1]
-      client.username = login.username
-      client.uid = login.uid
+      client.username = decoded[1]
+      client.uid = decoded[2]
     end
     for _, callback in ipairs(server._handlers[packetType]) do
       callback(client)
