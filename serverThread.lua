@@ -48,7 +48,7 @@ do
       void* GetProcAddress(void* hModule, const char* lpProcName);
       bool FreeLibrary(void* hModule);
       // Advapi32: SystemFunction036
-      bool RtlGenRandom(void* buffer, unsigned long ulong);
+      bool RtlGenRandom(void* buffer, unsigned long bufferLength);
     ]]
     local kernel32 = ffi.load("kernel32.dll")
     local advapi = kernel32.LoadLibraryA("Advapi32.dll")
