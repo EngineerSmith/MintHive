@@ -50,7 +50,7 @@ return {
 
     -- Changing the following values after having generated uids
     -- Will cause previously generated UIDs to become invalid
-  hashFunction = "sha256", -- https://love2d.org/wiki/HashFunction
+  hashFunction = "sha512", -- https://love2d.org/wiki/HashFunction
   uidLength = 64,
   saltLength = 64,
 }

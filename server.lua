@@ -1,7 +1,7 @@
 local PATH = (...):gsub('%.[^%.]+$', '')
 local FILEPATH = PATH:gsub('%.', '/')
 
-local lt, ld = love.thread, love.data
+local lt, ld, le = love.thread, love.data, love.event
 
 local serialize = require(PATH .. ".serialize")
 local options = require(PATH .. ".options")
@@ -55,14 +55,14 @@ server.addHandler = function(type, callback)
   table.insert(server._handlers[type], callback)
 end
 
-server.send = function(client, type, ...)
+server.send = function(client, type_, ...)
   if server._isSingleplayer then
-    le.push(options.clientHandlerEvent, type, ...)
+    le.push(options.clientHandlerEvent, type_, ...)
     return
   end
   server._channelIn:push({
     type(client) == "table" and client.id or client,
-    serialize.encode(type, ...),
+    serialize.encode(type_, ...),
   })
 end
 
@@ -70,16 +70,16 @@ server.sendAll = function(type, ...)
   server.send("all", type, ...)
 end
 
-server.sendChannel = function(channel, client, type, ...)
+server.sendChannel = function(channel, client, type_, ...)
   if server._isSingleplayer then
-    le.push(options.clientHandlerEvent, type, ...)
+    le.push(options.clientHandlerEvent, type_, ...)
     return
   end
   server._channelIn:push({
     "channel",
     channel,
     type(client) == "table" and client.id or client,
-    serialize.encode(type, ...),
+    serialize.encode(type_, ...),
   })
 end
 
@@ -185,12 +185,12 @@ server._handler = function(packetType, ...)
   local client = server._getClient(sessionID)
 
   if packetType == enum.packetType.receive then
-    local type = decoded[1]
-    if not type or type(client._handlers[type]) ~= "table" then
-      options.log("There were no handlers for received type: "..tostring(type))
+    local type_ = decoded[1]
+    if not type_ or type(server._handlers[type_]) ~= "table" then
+      options.log("There were no handlers for received type: "..tostring(type_))
       return
     end
-    for _, callback in ipairs(server._handlers[type]) do
+    for _, callback in ipairs(server._handlers[type_]) do
       callback(client, unpack(decoded, 2))
     end
   else

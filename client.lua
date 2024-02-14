@@ -145,12 +145,12 @@ client._handler = function(packetType, encoded, ...)
   end
 
   if packetType == enum.packetType.receive then
-    local type = decoded[1]
-    if not type or type(client._handlers[type]) ~= "table" then
-      options.log("There were no handlers for received type: "..tostring(type))
+    local type_ = decoded[1]
+    if not type_ or type(client._handlers[type_]) ~= "table" then
+      options.log("There were no handlers for received type: "..tostring(type_))
       return
     end
-    for _, callback in ipairs(client._handlers[type]) do
+    for _, callback in ipairs(client._handlers[type_]) do
       callback(unpack(decoded, 2))
     end
   elseif packetType == enum.packetType.disconnect then

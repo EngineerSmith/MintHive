@@ -174,7 +174,7 @@ local removeClient = function(sessionID)
 end
 
 local validLogin = function(client, encoded)
-  local decoded = serialize.decodeIndexed(encoded)
+  local decoded = serialize.decodeIndexed(encoded:getString())
   if type(decoded) ~= "table" or decoded == nil then
     POST("log", "Invalid decoded")
     return false
@@ -236,14 +236,15 @@ while true do
   while event and limit < 50 do
     if inProfile then inProfile.args.cycles = inProfile.args.cycles + 1 end
 
-    local sessionID = event.peer:connect_id()
+    local sessionID = ld.hash("string", "sha256", tostring(event.peer)) -- peer:connect_id() doesn't work if user disconnects unexpectedly
     local client = getClient(sessionID)
 
     if event.type == "receive" then
-      local success, encoded = pcall(ld.decompress, "string", options.compressionFunction, event.data)
+      local success, encoded = pcall(ld.decompress, "data", options.compressionFunction, event.data)
       if not success then
-        POST("log", "Could not decompress incoming data from "..sessionID..(client.username and " known as "..client.username or ""))
-        if not client.loggedIn then
+        if client.loggedIn then
+          POST("log", "Could not decompress incoming data from "..client.username)
+        else
           removeClient(sessionID)
           client.peer:disconnect_now(enum.disconnect.badlogin)
         end
@@ -272,7 +273,7 @@ while true do
     elseif event.type == "connect" then
       client.peer = event.peer
       if event.data ~= settings.pin then
-        POST("log", event.data, settings.pin)
+        POST("log", "Review", event.data, settings.pin)
         removeClient(sessionID)
         client.peer:disconnect_now(enum.disconnect.badlogin)
         goto continue
@@ -344,7 +345,7 @@ while true do
       if target == "all" then
         for _, client in pairs(clients) do
           if client.loggedIn then
-            client.peer:send(data:getPointer(), data:getSize(), channel, flags)
+            client.peer:send(compressData:getPointer(), compressData:getSize(), channel, flags)
           end
         end
       else

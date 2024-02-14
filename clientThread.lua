@@ -83,7 +83,7 @@ while true do
     if event.type == "receive" then
       local success, data = pcall(ld.decompress, "data", options.compressionFunction, event.data)
       if not success then
-        POST("log", "Incoming data ignored! Could not decompress")
+        POST("log", "Incoming data ignored! Could not decompress:", tostring(data))
       else
         if loggedIn then
           POST(enum.packetType.receive, data)

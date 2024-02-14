@@ -9,6 +9,14 @@ local mintHive = {
   validateUsername = options.validateUsername
 }
 
+mintHive.isClient = function()
+  return mintHive.isSingleplayer or mintHive.client.isRunning()
+end
+
+mintHive.isServer = function()
+  return mintHive.isSingleplayer or mintHive.server.isRunning()
+end
+
 mintHive.setSingleplayer = function()
   return mintHive._setMode(true)
 end
