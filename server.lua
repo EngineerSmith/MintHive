@@ -10,6 +10,10 @@ local enum = require(PATH .. ".enum")
 local server = {
   channel = enum.channel,
   disconnectReason = enum.disconnect,
+  singleplayerClient = {
+    username = "usr",
+    uid = "0",
+  },
   -- private
   _handlers = {
     started = { }
@@ -153,7 +157,7 @@ end
 server._handler = function(packetType, ...)
   if server._isSingleplayer then
     for _, callback in ipairs(server._handlers[packetType]) do
-      callback(nil--[[ client ]], ...)
+      callback(server.singleplayerClient, ...)
     end
     return
   end

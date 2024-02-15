@@ -44,6 +44,7 @@ mintHive.startSingleplayer = function()
   end
   love.handlers[options.clientHandlerEvent] = mintHive.client._handler
   love.handlers[options.serverHandlerEvent] = mintHive.server._handler
+  mintHive.client.isConnected = true
   return true
 end
 

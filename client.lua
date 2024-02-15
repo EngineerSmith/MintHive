@@ -1,7 +1,7 @@
 local PATH = (...):gsub('%.[^%.]+$', '')
 local FILEPATH = PATH:gsub('%.', '/')
 
-local lt = love.thread
+local lt, le = love.thread, love.event
 
 local serialize = require(PATH .. ".serialize")
 local options = require(PATH .. ".options")
